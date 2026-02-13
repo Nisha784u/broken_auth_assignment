@@ -1,0 +1,54 @@
+Task-1-Task 1: Create Session & Get OTP (Login)
+
+PS D:\project\broken_auth_assignment> $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+>> 
+PS D:\project\broken_auth_assignment> Invoke-RestMethod -WebSession $s -Method Post -Uri http://localhost:3000/auth/login -ContentType "application/json" -Body '{"email":"abx@test.com","password":"123456"}'
+>> 
+
+message  loginSessionId
+-------  --------------
+OTP sent m99t8xl       
+
+
+PS D:\project\broken_auth_assignment> $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+
+
+
+PS D:\project\broken_auth_assignment> Invoke-RestMethod -WebSession $s -Method Post -Uri http://localhost:3000/auth/login -ContentType "application/json" -Body '{"email":"abx@test.com","password":"123456"}'
+>> 
+
+message  loginSessionId
+-------  --------------
+OTP sent ter95r
+
+>> Task 2: Verify OTP
+
+PS D:\project\broken_auth_assignment> Invoke-RestMethod -WebSession $s -Method Post -Uri http://localhost:3000/auth/verify-otp -ContentType "application/json" -Body '{"loginSessionId":"ter95r","otp":"727413"}'   
+>>
+Output:
+message      sessionId
+-------      ---------
+OTP verified ter95r
+
+Task 3: Generate JWT Token
+
+PS D:\project\broken_auth_assignment> $resp = Invoke-RestMethod -WebSession $s -Method Post -Uri http://localhost:3000/auth/token
+>> $token = $resp.access_token
+>> $token
+>>
+Output:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFieEB0ZXN0LmNvbSIsInNlc3Npb25JZCI6InRlcjk1ciIsImlhdCI6MTc3MDk1ODk2MCwiZXhwIjoxNzcwOTU5ODYwfQ.CJ5lAY8hPr2d2ufKaWghHTcSCAKl7X0grkhWEq-AcDI
+
+Task 4: Access Protected Route Using Token
+
+PS D:\project\broken_auth_assignment> Invoke-RestMethod -Method Get -Uri http://localhost:3000/protected -Headers @{ Authorization = "Bearer $token" }
+>>
+
+Output:
+
+message        user                                                                    success_flag       
+-------        ----                                                                    ------------       
+Access granted @{email=abx@test.com; sessionId=ter95r; iat=1770958960; exp=1770959860} FLAG-YWJ4QHRlc3... 
+
+
+PS D:\project\broken_auth_assignment>

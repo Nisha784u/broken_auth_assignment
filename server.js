@@ -3,7 +3,6 @@ const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const requestLogger = require("./middleware/logger");
 const authMiddleware = require("./middleware/auth");
-const { generateToken } = require("./utils/tokenGenerator");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,7 +14,7 @@ const otpStore = {};
 // Middleware
 app.use(requestLogger);
 app.use(express.json());
-
+app.use(cookieParser()); // ✅ IMPORTANT
 
 app.get("/", (req, res) => {
   res.json({
@@ -25,7 +24,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// CHANGE 1: /auth/login endpoint
+// ================= LOGIN =================
 app.post("/auth/login", (req, res) => {
   try {
     const { email, password } = req.body;
@@ -49,7 +48,8 @@ app.post("/auth/login", (req, res) => {
     // Store OTP
     otpStore[loginSessionId] = otp;
 
-    console.log(`[OTP] Session ${loginSessionId} generated`);
+    // ✅ FIX: Print OTP also
+    console.log(`[OTP] Session ${loginSessionId} generated with OTP: ${otp}`);
 
     return res.status(200).json({
       message: "OTP sent",
@@ -63,6 +63,7 @@ app.post("/auth/login", (req, res) => {
   }
 });
 
+// ================= VERIFY OTP =================
 app.post("/auth/verify-otp", (req, res) => {
   try {
     const { loginSessionId, otp } = req.body;
@@ -87,6 +88,7 @@ app.post("/auth/verify-otp", (req, res) => {
       return res.status(401).json({ error: "Invalid OTP" });
     }
 
+    // Set cookie
     res.cookie("session_token", loginSessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -107,29 +109,30 @@ app.post("/auth/verify-otp", (req, res) => {
   }
 });
 
+// ================= TOKEN =================
 app.post("/auth/token", (req, res) => {
   try {
-    const token = req.headers.authorization;
+    // ✅ FIX: Read session from cookie instead of Authorization header
+    const sessionId = req.cookies.session_token;
 
-    if (!token) {
+    if (!sessionId) {
       return res
         .status(401)
         .json({ error: "Unauthorized - valid session required" });
     }
 
-    const session = loginSessions[token.replace("Bearer ", "")];
+    const session = loginSessions[sessionId];
 
     if (!session) {
       return res.status(401).json({ error: "Invalid session" });
     }
 
-    // Generate JWT
     const secret = process.env.JWT_SECRET || "default-secret-key";
 
     const accessToken = jwt.sign(
       {
         email: session.email,
-        sessionId: token,
+        sessionId: sessionId,
       },
       secret,
       {
@@ -149,12 +152,14 @@ app.post("/auth/token", (req, res) => {
   }
 });
 
-// Protected route example
+// ================= PROTECTED =================
 app.get("/protected", authMiddleware, (req, res) => {
   return res.json({
     message: "Access granted",
     user: req.user,
-    success_flag: `FLAG-${Buffer.from(req.user.email + "_COMPLETED_ASSIGNMENT").toString('base64')}`,
+    success_flag: `FLAG-${Buffer.from(
+      req.user.email + "_COMPLETED_ASSIGNMENT"
+    ).toString("base64")}`,
   });
 });
 
